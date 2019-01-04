@@ -13,6 +13,7 @@ betaz=c pz/e
 vr=betar c
 vz=betaz c
 
+v1.1 np.arange-->linspace
 '''
 import numpy as np
 from numpy import genfromtxt, dtype
