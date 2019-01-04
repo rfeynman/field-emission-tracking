@@ -1,7 +1,7 @@
 '''
 Created on Dec 3, 2018
 
-@author: wange
+@author: Erdong Wang
 Voltage, cent meter, second
 
 c dpr=e Er c dt--->pr=pr0+dpr
@@ -24,12 +24,12 @@ from sympy.physics.mechanics.particle import Particle
 from matplotlib import ticker, cm
 import copy
 
-datafilepath = "../data/high/"
+datafilepath = "../data/BNL/"
 dt=3e-12 #s
 c=3e10 #cm/s
 e0=0.511e6 #eV
-grad=117000
-filename='jlab_noshed'
+grad=30000
+filename='FINAL'
 savname=filename+'_'+str(int(grad/1000))
 
 def sfotreatment(filename):   
@@ -55,10 +55,11 @@ def sf7treatment(filename):
     splitmin=sf7raw[27][2].split(',')
     rmin=float(splitmin[0][1:])
     zmin=float(splitmin[1][:-1])
-    splitmax=sf7raw[28][2].split(',')
-    rmax=float(splitmax[0][1:])
-    zmax=float(splitmax[1][:-1])
-    
+    splitmax=sf7raw[-5]
+    print(splitmax)
+    rmax=float(splitmax[0])
+    zmax=float(splitmax[1])
+   
     return df, rmin,rmax,rinc,zmin,zmax,zinc
 
 def fileopen(filename):  
@@ -77,7 +78,7 @@ def searchstring(rawline, cha_string):
     return(a)
 
     
-def geneparticle(segdatasfo,segmentnum,voltage,gradient,plot):
+def geneparticle(segdatasfo,segmentnum,voltage,gradient,rmin,rmax,zmin,zmax,plot):
     particlesdot=pd.DataFrame(columns=segdatasfo[1].columns.values) #particlesdot, the orignal dataframe read from sfo file
     
     for elem in range(1,segmentnum+1):#segmentnum+1
@@ -101,10 +102,10 @@ def geneparticle(segdatasfo,segmentnum,voltage,gradient,plot):
     particlesdotps['Z']=particlesdotps0['Z']+particlesdotps['Vz']*ddt
     #print(particlesdotps) 
     if plot:
-        plt.xlim(-25,25)
-        plt.ylim(-25,30)
-        plt.xticks(np.arange(0,25,5))
-        plt.yticks(np.arange(-25,30,5))
+        plt.xlim(-rmax,rmax)
+        plt.ylim(zmin,zmax)
+        plt.xticks(np.arange(0,rmax,5))
+        plt.yticks(np.arange(zmin,zmax,5))
         plt.plot(particlesdot['R'],particlesdot['Z'],'bo',markersize=0.2)
         plt.gca().set_aspect("equal")
         plt.savefig(savname+"_ini_par.jpg",dpi=450)
@@ -115,8 +116,14 @@ def geneparticle(segdatasfo,segmentnum,voltage,gradient,plot):
 
 def fieldinterp(field,rmin,rmax,rinc,zmin,zmax,zinc,plot):
     #print(field)
-    rarray=np.arange(rmin,rmax+(rmax-rmin)/rinc,(rmax-rmin)/rinc) #generate a ascend rarray
-    zarray=np.arange(zmin,zmax+(zmax-zmin)/zinc,(zmax-zmin)/zinc)
+    print(rmin,rmax,rinc,zmin,zmax,zinc)
+    #rarray=np.arange(rmin,rmax+(rmax-rmin)/rinc,(rmax-rmin)/rinc) #generate a ascend rarray
+    #zarray=np.arange(zmin,zmax,(zmax-zmin)/zinc) #zmax+(zmax-zmin)/zinc
+    
+    rarray=np.linspace(rmin,rmax,rinc+1)
+    zarray=np.linspace(zmin,zmax,zinc+1)
+    
+    #print(rarray,zarray)
     matrixer=field['Er'].values.reshape(len(zarray),len(rarray)) #a 2D shape field map, Er
     matrixez=field['Ez'].values.reshape(len(zarray),len(rarray))# Ez
     matrixv=field['V'].values.reshape(len(zarray),len(rarray))# Voltage
@@ -170,12 +177,12 @@ def motion(inipar,fer,fez,fv,tout,ttotal):
     return outpar
 
 
-def resultdraw(segdatasfo, segmentnum, particle):
+def resultdraw(segdatasfo, segmentnum, particle,rmin,rmax,zmin,zmax):
     plt.figure(figsize=(10,8))
-    plt.xlim(-30,30)
-    plt.ylim(-30,30)
-    plt.xticks(np.arange(0,25,5))
-    plt.yticks(np.arange(-25,30,5))
+    plt.xlim(-rmax,rmax)
+    plt.ylim(zmin,zmax)
+    plt.xticks(np.arange(0,rmax,5))
+    plt.yticks(np.arange(zmin,zmax,5))
         #plt.plot(segdata[1]['R'],segdata[1]['Z'],'-')
         
     for elem in range(1,segmentnum+1):
@@ -197,8 +204,9 @@ def resultdraw(segdatasfo, segmentnum, particle):
 def test():
     plot=1
     segdata, segmentnum = sfotreatment(filename+".SFO")
-    particlesdotps=geneparticle(segdata, segmentnum,-200000,grad,plot) #segdata,segmentnum, voltage,gradient
     field,rmin,rmax,rinc,zmin,zmax,zinc=sf7treatment(filename+".SF7")
+    particlesdotps=geneparticle(segdata, segmentnum,-200000,grad,rmin,rmax,zmin,zmax,plot) #segdata,segmentnum, voltage,gradient
+
     fer,fez,fv=fieldinterp(field,rmin,rmax,rinc,zmin,zmax,zinc,plot)
     #print(fer(-3.028,7.715),fez(-3.028,7.715),'\n',fer(4.8492,6.33),fez(4.8492,6.33),'\n',fer(0.04,6.5335),fez(0.04,6.5335))
 
@@ -206,8 +214,8 @@ def test():
     tout=20*dt
     ttotal=300*dt
     outpar=motion(particlesdotps, fer, fez,fv,tout,ttotal)
-    print(particlesdotps['E']-511000,outpar['E']-511000)
-    resultdraw(segdata, segmentnum,outpar)
+    #print(particlesdotps['E']-511000,outpar['E']-511000)
+    resultdraw(segdata, segmentnum,outpar,rmin,rmax,zmin,zmax)
 
 if __name__ == '__main__':
     test()
