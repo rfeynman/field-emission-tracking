@@ -12,7 +12,7 @@ betar=c pr/e
 betaz=c pz/e
 vr=betar c
 vz=betaz c
-
+what is it
 v1.1 np.arange-->linspace
 '''
 import numpy as np
@@ -29,7 +29,7 @@ datafilepath = "../data/BNL/"
 dt=3e-12 #s
 c=3e10 #cm/s
 e0=0.511e6 #eV
-grad=30000
+grad=80000
 filename='FINAL'
 savname=filename+'_'+str(int(grad/1000))
 
@@ -83,7 +83,7 @@ def geneparticle(segdatasfo,segmentnum,voltage,gradient,rmin,rmax,zmin,zmax,plot
     particlesdot=pd.DataFrame(columns=segdatasfo[1].columns.values) #particlesdot, the orignal dataframe read from sfo file
     
     for elem in range(1,segmentnum+1):#segmentnum+1
-        seggene=segdatasfo[elem].ix[(segdatasfo[elem]['V']<voltage) & (segdatasfo[elem]['|E|']>gradient)]
+        seggene=segdatasfo[elem].loc[(segdatasfo[elem]['V']<voltage) & (segdatasfo[elem]['|E|']>gradient)]
         particlesdot=pd.concat([particlesdot,seggene], ignore_index=True)
     #print("partocles",particledot)
     particlesdotps0=particlesdot[['R','Z']]
@@ -115,11 +115,14 @@ def geneparticle(segdatasfo,segmentnum,voltage,gradient,rmin,rmax,zmin,zmax,plot
     return particlesdotps    
 
 
-def fieldinterp(field,rmin,rmax,rinc,zmin,zmax,zinc,plot):
+def fieldinterp(field,rmin,rmax,rinc,zmin,zmax,zinc,plot,segdatasfo, segmentnum):
     #print(field)
     print(rmin,rmax,rinc,zmin,zmax,zinc)
     #rarray=np.arange(rmin,rmax+(rmax-rmin)/rinc,(rmax-rmin)/rinc) #generate a ascend rarray
     #zarray=np.arange(zmin,zmax,(zmax-zmin)/zinc) #zmax+(zmax-zmin)/zinc
+    
+    
+     
     
     rarray=np.linspace(rmin,rmax,rinc+1)
     zarray=np.linspace(zmin,zmax,zinc+1)
@@ -134,10 +137,38 @@ def fieldinterp(field,rmin,rmax,rinc,zmin,zmax,zinc,plot):
     fer=itp.RectBivariateSpline(zarray,rarray,matrixer) # the map shape is z,r
     fez=itp.RectBivariateSpline(zarray,rarray,matrixez) #do not use interp2d which is extremly slow
     fv=itp.RectBivariateSpline(zarray,rarray,matrixe)
+    if 0:
+        fig,ax=plt.subplots()
+        levels=np.linspace(0,100000,80)
+        cs=ax.contourf(rarray,zarray,matrixe,levels=levels,cmap=cm.jet)# 
+        ax.set_xlabel("X [cm]")
+        ax.set_ylabel("Y [cm]")
+        for elem in range(1,segmentnum+1):
+            ax.plot(segdatasfo[elem]['R'],segdatasfo[elem]['Z'],'y-',linewidth=0.5 )
+        cbar=fig.colorbar(cs,ticks=np.linspace(0,100000,11))
+        cbar.set_label("V/cm")
+        
+        fig.gca().set_aspect("equal")
+        fig.savefig(savname+"_fielde.jpg",dpi=1800)
+     
     if plot:
-        plt.contourf(rarray,zarray,matrixe,50 ) #if log scale, then add locator=ticker.LogLocator()
-        plt.gca().set_aspect("equal")
-        plt.savefig(savname+"_fielde.jpg",dpi=1800)
+        fig,ax=plt.subplots()
+        levels=np.linspace(0,100000,80)
+        cs=ax.contourf(rarray,zarray,matrixe,levels=levels,cmap=cm.jet)# 
+        ax.set_xlabel("X [cm]")
+        ax.set_ylabel("Y [cm]")
+        for elem in range(1,segmentnum+1):
+            ax.plot(segdatasfo[elem]['R'],segdatasfo[elem]['Z'],'y-',linewidth=0.5 )
+        cbar=fig.colorbar(cs,ticks=np.linspace(0,100000,11))
+        cbar.set_label("V/cm")
+        ax.set_xlim([0,7.5]) #final [0,10], real [0,15]
+        ax.set_ylim([6.2,18]) #final [0,18],read [5,30]
+        fig.gca().set_aspect("equal")
+        fig.savefig(savname+"_fielde_local.jpg",dpi=1800)      
+        #plt.contourf(rarray,zarray,matrixe,50) #if log scale, then add locator=ticker.LogLocator()
+        #plt.legend(loc='right')
+        #plt.gca().set_aspect("equal")
+        #plt.savefig(savname+"_fielde.jpg",dpi=1800)
         #plt.show()
     #print(fer.ev([-22.3,-22.3,1],[4.3,11.2,1]))
     return fer,fez,fv
@@ -189,6 +220,7 @@ def resultdraw(segdatasfo, segmentnum, particle,rmin,rmax,zmin,zmax):
     for elem in range(1,segmentnum+1):
         plt.plot(segdatasfo[elem]['R'],segdatasfo[elem]['Z'],'m-')
     
+    
     if particle is not 0:
         plt.plot(particle['R'].values,particle['Z'].values,'bo',markersize=0.2)#,c=particle['E'].values-e0,'o',markersize=0.1)
         
@@ -206,9 +238,9 @@ def test():
     plot=1
     segdata, segmentnum = sfotreatment(filename+".SFO")
     field,rmin,rmax,rinc,zmin,zmax,zinc=sf7treatment(filename+".SF7")
-    particlesdotps=geneparticle(segdata, segmentnum,-200000,grad,rmin,rmax,zmin,zmax,plot) #segdata,segmentnum, voltage,gradient
+    particlesdotps=geneparticle(segdata, segmentnum,-300000,grad,rmin,rmax,zmin,zmax,plot) #segdata,segmentnum, voltage,gradient
 
-    fer,fez,fv=fieldinterp(field,rmin,rmax,rinc,zmin,zmax,zinc,plot)
+    fer,fez,fv=fieldinterp(field,rmin,rmax,rinc,zmin,zmax,zinc,plot,segdata, segmentnum )
     #print(fer(-3.028,7.715),fez(-3.028,7.715),'\n',fer(4.8492,6.33),fez(4.8492,6.33),'\n',fer(0.04,6.5335),fez(0.04,6.5335))
 
 
